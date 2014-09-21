@@ -17,6 +17,7 @@ logEventBoundaries = (eventName) ->
       console.log "Finished #{lastEvent}"
     console.log "Started eventName"
     lastEvent = eventName
+  return
 
 progressTimings =
   'Fetching CSV': 10
@@ -70,6 +71,57 @@ chartDefaults =
     radius: 125
     innerRadius: 45
 
+class DimensionChart
+  reducer: () ->
+    @dimension.group().reduceCount()
+
+  constructor: (opts) ->
+    @name = opts.name
+    @el = opts.el
+    @chartType = opts.chartType
+    @chartOptions = _.defaults(opts.chartOptions || {}, chartDefaults[@chartType])
+    @labels = opts.labels
+    @postSetup = opts.postSetup
+    @dimensionFunction = opts.dimensionFunction
+    @reducer = opts.reducer || @reducer
+
+  applyToCrossFilter: (ndx) ->
+    @dimension = ndx.dimension @dimensionFunction
+    @group = @reducer()
+    return
+
+  createChart: () ->
+    ###
+    If we have a chart and dom element defined for the dimension, bootstrap the chart
+    with the dimension and group generated above.
+    ###
+    if @chartType and @el
+      @chart = dc[@chartType](@el)
+        .dimension(@dimension)
+        .group(@group)
+
+      ###
+      Also, set some options for the chart based on the default values configured for
+      the chart type or the values of `chartOptions` defined at the dimension level.
+      ###
+      for option, value of @chartOptions
+        @chart[option](value)
+
+      ###
+      If we've defined a labels array for the dimension, replace the d.key with the
+      corresponding value from the array.
+      ### 
+      if typeof @labels == 'object'
+        @chart.label (d) =>
+          @labels[d.key]
+
+      ###
+      If we've defined a post-setup function for the dimension (the set axis
+      parameters, etc), call it here
+      ###
+      if typeof @postSetup == 'function'
+        @postSetup.apply(this)
+
 loadData = (csvFile) ->
   console.log "Started processing CSV", csvFile
 
@@ -84,6 +136,7 @@ loadData = (csvFile) ->
       d.day = d3.time.day.floor(d.startdate)
       d.age = if d.birthday then d.startdate.getFullYear() - d.birthday else -1
       d.gender = d.gender || 'Undisclosed'
+      return
 
     console.log "Finished pre-parsing data"
 
@@ -95,115 +148,86 @@ loadData = (csvFile) ->
 
     # Ignore non-subscriber counts for certain fields like gender and age
     # since we only have valid data for subscribers
-    ignoreCustomerReducer = (dimension) ->
-      dimension.group().reduceSum (d) ->  
+    ignoreCustomerReducer = ->
+      @dimension.group().reduceSum (d) ->  
         if d.usertype == 'Subscriber' then 1 else 0
 
     # Create a number of dimensions to slice and dice the data. The dimension
     # is the "bucket" we're aggregating into.
-    dimensions =
-      byDate:
-        makeDimension: (d) -> d.day
+    dimensions = [
+      new DimensionChart
+        name: 'Trips over Time'
+        dimensionFunction: (d) -> d.day
+        el: '#trips-over-time-chart'
+        chartType: 'lineChart'
+        chartOptions:
+          x: d3.time.scale().domain([Date(2013, 5, 27), Date(2013, 11, 31)])
+          round: d3.time.day.round
+          xUnits: d3.time.days
+        postSetup: ->
+          @chart
+            .group(@group, 'Rides Per Day')
+            .title (d) ->
+              "#{d.key}\n#{d.value} rides"
 
-      byHourOfDay:
-        makeDimension: (d) -> d.startdate.getHours()
+      new DimensionChart
+        name: 'Hour of Day'
+        dimensionFunction: (d) -> d.startdate.getHours()
         el: '#time-of-day-chart'
         chartType: 'barChart'
         chartOptions:
           x: d3.scale.linear().domain([0, 23])
-        postSetup: (chart) ->
-          chart.xAxis().ticks(6).tickFormat (v) ->
+        postSetup: ->
+          @chart.xAxis().ticks(6).tickFormat (v) ->
             if v == 0 then "Midnight" else if v < 12 then "#{v}am" else "#{v-12}pm"
 
-      byDayOfWeek:
-        makeDimension: (d) -> d.startdate.getDay()
+      new DimensionChart
+        name: 'Day of Week'
+        dimensionFunction: (d) -> d.startdate.getDay()
         el: '#day-of-week-chart'
         chartType: 'rowChart'
         chartOptions:
           ordinalColors: ['#88419d', '#08519c', '#2171b5', '#4292c6', '#6baed6', '#9ecae1', '#88419d']
         labels:
           ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-        postSetup: (chart) ->
-          chart.xAxis().ticks(4)
+        postSetup: ->
+          @chart.xAxis().ticks(4)
 
-      byDuration:
-        makeDimension: (d) -> d3.round(d.tripduration / 60)
+      new DimensionChart
+        name: 'Trip Duration'
+        dimensionFunction: (d) -> d3.round(d.tripduration / 60)
         el: '#trip-duration-chart'
         chartType: 'barChart'
         chartOptions:
           x: d3.scale.linear().domain([0, 75])
 
-      byUserType:
-        makeDimension: (d) -> d.usertype
+      new DimensionChart
+        name: 'User Type'
+        dimensionFunction: (d) -> d.usertype
         el: '#user-type-chart'
         chartType: 'pieChart'
 
-      byAge:
-        makeDimension: (d) -> d.age
+      new DimensionChart
+        name: 'Age of Rider'
+        dimensionFunction: (d) -> d.age
         reducer: ignoreCustomerReducer
         el: '#age-chart'
         chartType: 'barChart'
         chartOptions:
           x: d3.scale.linear().domain([15, 75])
 
-      byGender:
-        makeDimension: (d) -> d.gender
+      new DimensionChart
+        name: 'Gender of Rider'
+        dimensionFunction: (d) -> d.gender
         reducer: ignoreCustomerReducer
         el: '#gender-chart'
         chartType: 'pieChart'
+    ]
 
-    processDimension = () ->
-      ###
-      Set the dimension object for each function, this defines the "bucket"
-      ###
-      if typeof @makeDimension == 'function'
-        @dimension = ndx.dimension @makeDimension
-
-      ###
-      Then define the group operation, which determines the value for each bucket.
-      For most cases, we're just looking to do a simple count of rides, but if we explicitly
-      override that with a custom reducer function, use that instead.
-      ###
-      if typeof @reducer == 'function'
-        @group = @reducer(@dimension)
-      else
-        @group = @dimension.group().reduceCount()
-
-      ###
-      If we have a chart and dom element defined for the dimension, bootstrap the chart
-      with the dimension and group generated above.
-      ###
-      if @chartType and @el
-        @chart = dc[@chartType](@el)
-          .dimension(@dimension)
-          .group(@group)
-
-        ###
-        Also, set some options for the chart based on the default values configured for
-        the chart type or the values of `chartOptions` defined at the dimension level.
-        ###
-        defaultOptions = chartDefaults[@chartType] || {}
-        options = _.defaults(@chartOptions || {}, defaultOptions)
-        for option, value of options
-          @chart[option](value)
-
-        ###
-        If we've defined a labels array for the dimension, replace the d.key with the
-        corresponding value from the array.
-        ### 
-        if typeof @labels == 'object'
-          @chart.label (d) =>
-            @labels[d.key]
-
-        ###
-        If we've defined a post-setup function for the dimension (the set axis
-        parameters, etc), call it here
-        ###
-        if typeof @postSetup == 'function'
-          @postSetup(@chart, this)
-
-    for name, dimension of dimensions
-      processDimension.apply(dimension)
+    for dimension in dimensions
+      console.log "Building dimension '#{dimension.name}'"
+      dimension.applyToCrossFilter(ndx)
+      dimension.createChart()
 
     # For our primary time series grouping, we also want to reduce a special value that denotes
     # the total user time spent on a bike for that given interval (the sum of all trip durations).
@@ -215,7 +239,7 @@ loadData = (csvFile) ->
     took = new Date().getTime() - startTime.getTime()
     console.log "Done, took #{took}ms."
 
-    $('#reset-all').click () ->
+    $('#reset-all').click ->
       dc.filterAll()
       dc.redrawAll()
 
