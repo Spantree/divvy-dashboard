@@ -9,16 +9,6 @@ console.logCopy = console.log.bind(console)
 console.log = (msg, data) ->
   this.logCopy("[#{new Date().toUTCString()}] #{msg}", data);
 
-lastEvent = ''
-
-logEventBoundaries = (eventName) ->
-  if eventName != lastEvent
-    if lastEvent
-      console.log "Finished #{lastEvent}"
-    console.log "Started eventName"
-    lastEvent = eventName
-  return
-
 progressTimings =
   'Fetching CSV': 10
   'Pre-parsing data': 20
@@ -28,14 +18,14 @@ progressTimings =
 chartDefaults =
   
   lineChart:
-    # renderArea: true
+    renderArea: true
     width: 1170
     height: 200
-    # transitionDuration: 1000
     brushOn: false
     mouseZoomable: true
     elasticY: true
-    # legend: dc.legend().x(1070).y(10).itemHeight(13).gap(5)
+    renderHorizontalGridLines: true
+    legend: dc.legend().x(1000).y(10).itemHeight(13).gap(5)
     margins:
       top: 30
       right: 10
@@ -72,8 +62,18 @@ chartDefaults =
     innerRadius: 45
 
 class DimensionChart
-  reducer: () ->
-    @dimension.group().reduceCount()
+  reducers:
+    allRides: ->
+      @dimension.group().reduceCount()
+    customerRides: ->
+      @dimension.group().reduceSum (d) ->
+        if d.usertype == 'Customer' then 1 else 0
+    subscriberRides: ->
+      @dimension.group().reduceSum (d) ->
+        if d.usertype == 'Subscriber' then 1 else 0
+    minutesOnBike: ->
+      @dimension.group().reduceSum (d) ->
+        d.tripduration
 
   constructor: (opts) ->
     @name = opts.name
@@ -83,14 +83,20 @@ class DimensionChart
     @labels = opts.labels
     @postSetup = opts.postSetup
     @dimensionFunction = opts.dimensionFunction
-    @reducer = opts.reducer || @reducer
+    @reducer = opts.reducer || 'allRides'
+    @additionalGroupNames = opts.additionalGroupNames || []
 
   applyToCrossFilter: (ndx) ->
     @dimension = ndx.dimension @dimensionFunction
-    @group = @reducer()
+    @group = @reducers[@reducer].apply(this)
+    if @additionalGroupNames
+      @additionalGroups = {}
+    for name in @additionalGroupNames
+      @additionalGroups[name] = @reducers[name].apply(this)
+
     return
 
-  createChart: () ->
+  createChart: ->
     ###
     If we have a chart and dom element defined for the dimension, bootstrap the chart
     with the dimension and group generated above.
@@ -98,7 +104,7 @@ class DimensionChart
     if @chartType and @el
       @chart = dc[@chartType](@el)
         .dimension(@dimension)
-        .group(@group)
+        .group(@group, @name)
 
       ###
       Also, set some options for the chart based on the default values configured for
@@ -122,6 +128,8 @@ class DimensionChart
       if typeof @postSetup == 'function'
         @postSetup.apply(this)
 
+      return
+
 loadData = (csvFile) ->
   console.log "Started processing CSV", csvFile
 
@@ -135,8 +143,11 @@ loadData = (csvFile) ->
       d.startdate = dateFormat.parse(d.starttime)
       d.day = d3.time.day.floor(d.startdate)
       d.age = if d.birthday then d.startdate.getFullYear() - d.birthday else -1
+      d.membertype = if d.usertype == 'Subscriber' then 'Member' else 'Guest'
       d.gender = d.gender || 'Undisclosed'
       return
+
+    dateExtent = d3.extent data, (d) -> d.day
 
     console.log "Finished pre-parsing data"
 
@@ -146,29 +157,22 @@ loadData = (csvFile) ->
     # Create a group for all records (useful for counts, etc)
     all = ndx.groupAll()
 
-    # Ignore non-subscriber counts for certain fields like gender and age
-    # since we only have valid data for subscribers
-    ignoreCustomerReducer = ->
-      @dimension.group().reduceSum (d) ->  
-        if d.usertype == 'Subscriber' then 1 else 0
-
     # Create a number of dimensions to slice and dice the data. The dimension
     # is the "bucket" we're aggregating into.
     dimensions = [
       new DimensionChart
-        name: 'Trips over Time'
+        name: 'Member Rides per Day'
         dimensionFunction: (d) -> d.day
+        reducer: 'subscriberRides'
+        additionalGroupNames: ['customerRides', 'minutesOnBike']
         el: '#trips-over-time-chart'
         chartType: 'lineChart'
         chartOptions:
-          x: d3.time.scale().domain([Date(2013, 5, 27), Date(2013, 11, 31)])
-          round: d3.time.day.round
+          x: d3.time.scale().domain(dateExtent)
           xUnits: d3.time.days
         postSetup: ->
           @chart
-            .group(@group, 'Rides Per Day')
-            .title (d) ->
-              "#{d.key}\n#{d.value} rides"
+            .stack(@additionalGroups.customerRides, "Guest Rides Per Day")
 
       new DimensionChart
         name: 'Hour of Day'
@@ -203,14 +207,14 @@ loadData = (csvFile) ->
 
       new DimensionChart
         name: 'User Type'
-        dimensionFunction: (d) -> d.usertype
+        dimensionFunction: (d) -> d.membertype
         el: '#user-type-chart'
         chartType: 'pieChart'
 
       new DimensionChart
         name: 'Age of Rider'
         dimensionFunction: (d) -> d.age
-        reducer: ignoreCustomerReducer
+        reducer: 'subscriberRides'
         el: '#age-chart'
         chartType: 'barChart'
         chartOptions:
@@ -219,7 +223,7 @@ loadData = (csvFile) ->
       new DimensionChart
         name: 'Gender of Rider'
         dimensionFunction: (d) -> d.gender
-        reducer: ignoreCustomerReducer
+        reducer: 'subscriberRides'
         el: '#gender-chart'
         chartType: 'pieChart'
     ]
@@ -229,15 +233,12 @@ loadData = (csvFile) ->
       dimension.applyToCrossFilter(ndx)
       dimension.createChart()
 
-    # For our primary time series grouping, we also want to reduce a special value that denotes
-    # the total user time spent on a bike for that given interval (the sum of all trip durations).
-    # dimensions.byDate.minutesOnBikeGroup =
-    #   dimensions.byDate.dimension.group().reduceSum (d) -> d.tripduration
-
     dc.renderAll()
 
     took = new Date().getTime() - startTime.getTime()
     console.log "Done, took #{took}ms."
+
+    alert "Chart ready"
 
     $('#reset-all').click ->
       dc.filterAll()
