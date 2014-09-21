@@ -14,11 +14,6 @@
   <script type="text/javascript" src="bower_components/d3/d3.js"></script>
   <script type="text/javascript" src="bower_components/crossfilter/crossfilter.js"></script>
   <script type="text/javascript" src="bower_components/dcjs/dc.js"></script>
-  <script type="text/javascript" src="bower_components/angular/angular.js"></script>
-  <script type="text/javascript" src="bower_components/angular-dc/dist/angular-dc.js"></script>
-  
-  <script type="text/javascript" src="bower_components/elasticsearch/elasticsearch.js"></script>
-  <script type="text/javascript" src="bower_components/elasticsearch/elasticsearch.angular.js"></script>
 
   <script type="text/javascript" src="src/js/app.js"></script>
 </head>
@@ -36,6 +31,50 @@
                         </td>
                     </tr>
                 </table>
+            </span>
+        </div>
+        <div class="row" style="padding-top: 10px;">
+          <span class="col-xs-12">
+              <table>
+                  <tr>
+                      <td>
+                          <h4>Trips over Time</h4>
+                      </td>
+                      <td style="padding-top: 2px;">
+                          <a id="reset-all" style="cursor: pointer; padding-left: 10px;">Reset all filters</a>
+                      </td>
+                  </tr>
+              </table>
+              <div id="trips-over-time-chart"></div>
+          </span>
+        </div>
+        <div class="row" style="padding-top: 20px;">
+            <span class="col-xs-4">
+                <h4>Gender of Rider</h4>
+                <div id="gender-chart"></div>
+            </span>
+            <span class="col-xs-4">
+                <h4>Age of Rider</h4>
+               <div id="age-chart"></div>
+            </span>
+            <span class="col-xs-4">
+                <h4>Subscription Status</h4>
+                <div id="user-type-chart"></div>
+            </span>
+        </div>
+        <div class="row">
+            <span class="col-xs-4">
+                <h4>Day of Week</h4>
+                <div id="day-of-week-chart"></div>
+            </span>
+            <span class="col-xs-4">
+                <h4>Time of Day</h4>
+                <!-- <a ng-click="reset_time_of_day()">Reset</a> -->
+                <div id="time-of-day-chart"></div>
+            </span>
+            <span class="col-xs-4">
+                <h4>Trip Duration (in minutes)</h4>
+                <div id="trip-duration-chart"></div>
             </span>
         </div>
     </div>
