@@ -18,11 +18,12 @@ progressTimings =
 chartDefaults =
   
   lineChart:
+    transitionDuration: 1
     renderArea: true
     width: 1170
     height: 200
     brushOn: false
-    mouseZoomable: true
+    mouseZoomable: false
     elasticY: true
     renderHorizontalGridLines: true
     legend: dc.legend().x(1000).y(10).itemHeight(13).gap(5)
@@ -84,6 +85,7 @@ class DimensionChart
     @postSetup = opts.postSetup
     @dimensionFunction = opts.dimensionFunction
     @reducer = opts.reducer || 'allRides'
+    @rangeChart = opts.rangeChart
     @additionalGroupNames = opts.additionalGroupNames || []
 
   applyToCrossFilter: (ndx) ->
@@ -95,6 +97,21 @@ class DimensionChart
       @additionalGroups[name] = @reducers[name].apply(this)
 
     return
+
+  createRangeChart: ->
+    opts = @rangeChart
+    group = @additionalGroups[opts.group] || @group
+    chart = dc[opts.chartType](opts.el)
+      .dimension(@dimension)
+      .group(group)
+
+    for option, value of opts.chartOptions
+      chart[option](value)
+
+    if typeof opts.postSetup == 'function'
+      opts.postSetup.apply(chart)
+
+    @chart.rangeChart(chart)
 
   createChart: ->
     ###
@@ -127,6 +144,10 @@ class DimensionChart
       ###
       if typeof @postSetup == 'function'
         @postSetup.apply(this)
+
+      if typeof @rangeChart == 'object'
+        @createRangeChart()
+        
 
       return
 
@@ -173,6 +194,25 @@ loadData = (csvFile) ->
         postSetup: ->
           @chart
             .stack(@additionalGroups.customerRides, "Guest Rides Per Day")
+
+        rangeChart:
+          el: '#minutes-on-bike-chart'
+          chartType: 'barChart'
+          group: 'minutesOnBike'
+          postSetup: ->
+            @yAxis().tickValues []
+          chartOptions:
+            width: 1170
+            height: 40
+            centerBar: true
+            gap: 1
+            x: d3.time.scale().domain(dateExtent)
+            xUnits: d3.time.days
+            margins:
+              top: 0
+              right: 0
+              bottom: 20
+              left: 40
 
       new DimensionChart
         name: 'Hour of Day'
