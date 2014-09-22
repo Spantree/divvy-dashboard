@@ -15,6 +15,24 @@ progressTimings =
   'Loading dimensions': 80
   'Rendering': 100
 
+oldEventTriggerFunction = dc.events.trigger
+
+startLoading = ->
+  $('.dc-chart:not(#minutes-on-bike-chart)').css
+    opacity: 0.5
+  NProgress.start()
+
+finishedLoading = ->
+  NProgress.done()
+  $('.dc-chart').css
+    opacity: 1.0
+
+dc.events.trigger = (closure, delay) ->
+  # _.debounce startLoading, 50
+  oldEventTriggerFunction(closure, delay)
+
+dc.constants.EVENT_DELAY = 200
+
 chartDefaults =
   
   lineChart:
@@ -147,16 +165,19 @@ class DimensionChart
 
       if typeof @rangeChart == 'object'
         @createRangeChart()
-        
+
+      # @chart.on 'postRender', ->
+      #   _.debounce finishedLoading, 50
 
       return
+
+NProgress.start()
 
 loadData = (csvFile) ->
   console.log "Started processing CSV", csvFile
 
   # Use the D3 library to parse a CSV file into an array of JSON objects
   d3.csv csvFile, (data) ->
-    console.log "Finished processing CSV"
     startTime = new Date()
 
     # Pre-parse the dates and calculate things like rider age
@@ -169,8 +190,6 @@ loadData = (csvFile) ->
       return
 
     dateExtent = d3.extent data, (d) -> d.day
-
-    console.log "Finished pre-parsing data"
 
     # Load the data into a crossfilter multi-dimensional data set
     ndx = crossfilter(data)
@@ -194,6 +213,12 @@ loadData = (csvFile) ->
         postSetup: ->
           @chart
             .stack(@additionalGroups.customerRides, "Guest Rides Per Day")
+          @chart.on 'preRedraw', ->
+            console.log "Starting redraw"
+            startLoading()
+          @chart.on 'postRedraw', ->
+            console.log "Done with redraw"
+            finishedLoading()
 
         rangeChart:
           el: '#minutes-on-bike-chart'
@@ -201,6 +226,17 @@ loadData = (csvFile) ->
           group: 'minutesOnBike'
           postSetup: ->
             @yAxis().tickValues []
+            oldReplaceFilter = @replaceFilter
+            @replaceFilter = ->
+              startLoading()
+              _this = this
+              _arguments = arguments
+              doReplaceFilter = ->
+                oldReplaceFilter.apply(_this, _arguments)
+              setTimeout doReplaceFilter, 200
+            @on 'filtered', ->
+              console.log "Done filtering"
+
           chartOptions:
             width: 1170
             height: 40
@@ -268,17 +304,24 @@ loadData = (csvFile) ->
         chartType: 'pieChart'
     ]
 
+    d = 1
     for dimension in dimensions
+      NProgress.set(0.45 + (d++/dimensions.length)*0.8)
       console.log "Building dimension '#{dimension.name}'"
       dimension.applyToCrossFilter(ndx)
       dimension.createChart()
 
     dc.renderAll()
+    finishedLoading()
 
     took = new Date().getTime() - startTime.getTime()
     console.log "Done, took #{took}ms."
 
-    alert "Chart ready"
+    $('#initial-loading-message').css
+      display: 'none'
+
+    $('#chart-container').css
+      display: 'inline-block'
 
     $('#reset-all').click ->
       dc.filterAll()
