@@ -5,9 +5,9 @@
   
   <title>Divvy Data Dashboard</title>
 
-  <link rel="stylesheet" type="text/css" href="bower_components/dcjs/dc.css"/>
-  <link rel="stylesheet" type="text/css" href="bower_components/bootstrap/dist/css/bootstrap.css"/>
-  <link rel="stylesheet" type="text/css" href="bower_components/nprogress/nprogress.css"/>
+  <link rel="stylesheet" type="text/css" href="vendor/dcjs/dc.css"/>
+  <link rel="stylesheet" type="text/css" href="vendor/bootstrap/dist/css/bootstrap.css"/>
+  <link rel="stylesheet" type="text/css" href="vendor/nprogress/nprogress.css"/>
   <style>
     #chart-container {
       display: none;
@@ -16,11 +16,28 @@
     #initial-loading-message span {
       text-align: center;
     }
+
+    td.trips-over-time-metadata {
+      padding-top: 2px;
+      padding-left: 10px;
+    }
+
+    td.trips-over-time-metadata a {
+      cursor: pointer;
+    }
+
+    .muted {
+      color: #999;
+    }
+
+    .dc-chart .selected path {
+      stroke-width: 0px;
+    }
   </style>
 
-  <script type="text/javascript" src="bower_components/jquery/jquery.js"></script>
-  <script type="text/javascript" src="bower_components/bootstrap/dist/js/bootstrap.js"></script>
-  <script type="text/javascript" src="bower_components/lodash/dist/lodash.js"></script>
+  <script type="text/javascript" src="vendor/jquery/jquery.js"></script>
+  <script type="text/javascript" src="vendor/bootstrap/dist/js/bootstrap.js"></script>
+  <script type="text/javascript" src="vendor/lodash/dist/lodash.js"></script>
 </head>
 <body>
   <div class="container">
@@ -51,8 +68,11 @@
                       <td>
                           <h4>Trips over Time</h4>
                       </td>
-                      <td style="padding-top: 2px;">
-                          <a id="reset-all" style="cursor: pointer; padding-left: 10px;">Reset all filters</a>
+                      <td class="trips-over-time-metadata" id="data-count">
+                        Displaying <strong class="filter-count">0</strong> of <strong class="total-count">0</strong> rides
+                      </td>
+                      <td class="trips-over-time-metadata">
+                          <a id="reset-all">Reset all filters</a>
                       </td>
                   </tr>
               </table>
@@ -61,6 +81,7 @@
           <span class="col-xs-12">
             <div id="minutes-on-bike-chart"></div>
           </span>
+          <p class="muted pull-right" style="margin-right: 15px;">select a time range to zoom in</p>
         </div>
         <div class="row" style="padding-top: 20px;">
             <span class="col-xs-4">
@@ -93,9 +114,9 @@
         </div>
       </span>
   </div>
-  <script type="text/javascript" src="bower_components/d3/d3.js"></script>
-  <script type="text/javascript" src="bower_components/crossfilter/crossfilter.js"></script>
-  <script type="text/javascript" src="bower_components/dcjs/dc.js"></script>
-  <script type="text/javascript" src="bower_components/nprogress/nprogress.js"></script>
+  <script type="text/javascript" src="vendor/d3/d3.js"></script>
+  <script type="text/javascript" src="vendor/crossfilter/crossfilter.js"></script>
+  <script type="text/javascript" src="vendor/dcjs/dc.js"></script>
+  <script type="text/javascript" src="vendor/nprogress/nprogress.js"></script>
   <script type="text/javascript" src="src/js/app.js"></script>
 </body>
