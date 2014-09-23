@@ -13,6 +13,7 @@ module.exports = function(grunt) {
         'grunt-contrib-concat',
         'grunt-contrib-less',
         'grunt-contrib-coffee',
+        'grunt-zip',
         'grunt-usemin',
         'grunt-filerev'
     ].forEach(function(task) { grunt.loadNpmTasks(task); });

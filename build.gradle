@@ -1,0 +1,28 @@
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'application'
+
+sourceCompatibility = 1.7
+version = '1.0'
+
+def groovyVersion = "2.3.1"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.codehaus.groovy:groovy-all:$groovyVersion"
+    compile 'au.com.bytecode:opencsv:2.4'
+    compile 'com.spatial4j:spatial4j:0.4.1'
+}
+
+sourceSets {
+    main {
+        groovy {
+            srcDirs = ['src/groovy']
+        }
+    }
+}
+
+mainClassName = "BuildCsvs"
