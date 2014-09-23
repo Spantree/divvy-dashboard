@@ -36,7 +36,8 @@ dc.constants.EVENT_DELAY = 200
 chartDefaults =
   
   lineChart:
-    transitionDuration: 1
+    transitionDuration: 1000
+    turnOnControls: true
     renderArea: true
     width: 1170
     height: 200
@@ -44,6 +45,7 @@ chartDefaults =
     mouseZoomable: false
     elasticY: true
     renderHorizontalGridLines: true
+
     legend: dc.legend().x(1000).y(10).itemHeight(13).gap(5)
     margins:
       top: 30
@@ -78,7 +80,7 @@ chartDefaults =
     width: 250
     height: 250
     radius: 125
-    innerRadius: 45
+    innerRadius: 40
 
 class DimensionChart
   reducers:
@@ -184,6 +186,7 @@ loadData = (csvFile) ->
     data.forEach (d) ->
       d.startdate = dateFormat.parse(d.starttime)
       d.day = d3.time.day.floor(d.startdate)
+      d.dayMillis = d.day.getTime()
       d.age = if d.birthday then d.startdate.getFullYear() - d.birthday else -1
       d.membertype = if d.usertype == 'Subscriber' then 'Member' else 'Guest'
       d.gender = d.gender || 'Undisclosed'
@@ -201,24 +204,33 @@ loadData = (csvFile) ->
     # is the "bucket" we're aggregating into.
     dimensions = [
       new DimensionChart
-        name: 'Member Rides per Day'
-        dimensionFunction: (d) -> d.day
-        reducer: 'subscriberRides'
-        additionalGroupNames: ['customerRides', 'minutesOnBike']
+        name: 'Rides per Day'
+        dimensionFunction: (d) -> d.dayMillis
+        additionalGroupNames: ['minutesOnBike']
         el: '#trips-over-time-chart'
         chartType: 'lineChart'
         chartOptions:
           x: d3.time.scale().domain(dateExtent)
           xUnits: d3.time.days
+          round: d3.time.day.round
+          renderVerticalGridLines: true
+          yAxisPadding: 0
+          clipPadding: 0
         postSetup: ->
-          @chart
-            .stack(@additionalGroups.customerRides, "Guest Rides Per Day")
           @chart.on 'preRedraw', ->
             console.log "Starting redraw"
             startLoading()
           @chart.on 'postRedraw', ->
             console.log "Done with redraw"
             finishedLoading()
+
+          oldFocus = @chart.focus
+
+          @chart.focus = (range) ->
+            if (typeof range == 'object' and range.length == 2)
+              range[0] = d3.time.day.round(range[0])
+              range[1] = d3.time.day.round(range[1])
+            oldFocus(range)
 
         rangeChart:
           el: '#minutes-on-bike-chart'
@@ -238,8 +250,9 @@ loadData = (csvFile) ->
               console.log "Done filtering"
 
           chartOptions:
-            width: 1170
+            width: 1160
             height: 40
+            elasticY: true
             centerBar: true
             gap: 1
             x: d3.time.scale().domain(dateExtent)
@@ -286,6 +299,9 @@ loadData = (csvFile) ->
         dimensionFunction: (d) -> d.membertype
         el: '#user-type-chart'
         chartType: 'pieChart'
+        chartOptions:
+          label: (d) ->
+            "#{d.key} (#{Math.floor(d.value / all.value() * 100)}%)"
 
       new DimensionChart
         name: 'Age of Rider'
@@ -302,6 +318,9 @@ loadData = (csvFile) ->
         reducer: 'subscriberRides'
         el: '#gender-chart'
         chartType: 'pieChart'
+        chartOptions:
+          label: (d) ->
+            "#{d.key} (#{Math.floor(d.value / all.value() * 100)}%)"
     ]
 
     d = 1
@@ -310,6 +329,14 @@ loadData = (csvFile) ->
       console.log "Building dimension '#{dimension.name}'"
       dimension.applyToCrossFilter(ndx)
       dimension.createChart()
+
+    dc.dataCount("#data-count")
+        .dimension(ndx)
+        .group(all)
+        .html({
+            some:"<strong>%filter-count</strong> selected out of <strong>%total-count</strong> rides",
+            all:"All rides selected. Please click on the graph to apply filters."
+        });
 
     dc.renderAll()
     finishedLoading()
