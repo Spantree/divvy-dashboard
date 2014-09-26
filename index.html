@@ -17,6 +17,25 @@
       text-align: center;
     }
 
+    #initial-loading-message .spinner {
+      text-align: center;
+    }
+
+    #initial-loading-message .spinner-icon {
+      width: 50px;
+      height: 50px;
+      box-sizing: border-box;
+
+      border: solid 2px transparent;
+      border-top-color: #29d;
+      border-left-color: #29d;
+      border-radius: 50%;
+      margin: auto;
+
+      -webkit-animation: nprogress-spinner 400ms linear infinite;
+              animation: nprogress-spinner 400ms linear infinite;
+    }
+
     td.trips-over-time-metadata {
       padding-top: 2px;
       padding-left: 10px;
@@ -33,6 +52,56 @@
     .dc-chart .selected path {
       stroke-width: 0px;
     }
+
+    p {
+      font-size: 1.4em;
+      font-weight: 200;
+      line-height: 1.8em;
+    }
+
+    .row { 
+      padding-top: 20px;
+    }
+
+    .description {
+      padding-top: 10px;
+    }
+
+    /* Set the fixed height of the footer here */
+    #footer {
+      margin-top: 60px;
+      background-color: #333;
+      color: white;
+      display: none;
+    }
+
+    #footer .container {
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      vertical-align: center;
+      font-size: 0.8em;
+      padding-top: 15px;
+      padding-bottom: 30px;
+    }
+
+    #footer a {
+      color: white;
+    }
+
+    #instructions {
+      display: none;
+    }
+
+    /* Lastly, apply responsive CSS fixes as necessary */
+    @media (max-width: 767px) {
+      #footer {
+        margin-left: -20px;
+        margin-right: -20px;
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+    }
   </style>
 
   <script type="text/javascript" src="vendor/jquery/jquery.js"></script>
@@ -40,8 +109,8 @@
   <script type="text/javascript" src="vendor/lodash/dist/lodash.js"></script>
 </head>
 <body>
-  <div class="container">
-    <div class="row" style="padding-top: 20px;">
+  <div class="container wrap">
+    <div class="row">
           <span class="col-xs-12">
               <table>
                   <tr>
@@ -55,13 +124,27 @@
               </table>
           </span>
       </div>
-      <div class="row" style="padding-top: 20px;" id="initial-loading-message">
+      <div class="row description">
+          <p class="col-xs-12">
+            <a href="http://divvybikes.com">Divvy</a> is a bike sharing system in Chicago that makes thousands of bikes available for rent at various locations throughout the city.  Each station has a touchscreen kiosk and a docking system that releases bikes using a membership key or a ride code. 
+          </p>
+          <p class="col-xs-12">
+            In early 2014, Divvy released a data feed of the nearly <strong>760,000</strong> rides taken on Divvy bikes in its inaugural year of 2013. This was part of the <a href="https://www.divvybikes.com/data">Divvy Data Challenge</a>.  Unfortunately, <a href="http://spantree.net">Spantree</a> was heads down working on a few client projects during the challnege and didn't get a chance to compete, but we later took the opportunity to incorporate Divvy data into our <a href="https://github.com/Spantree/elasticsearch-talk">Elasticsearch Workshop</a>. We loved playing with the data so much that we decided to also create this data visualization demo powered by <a href="http://http://d3js.org/">D3.js</a>, <a href="http://square.github.io/crossfilter/">Crossfilter</a>, <a href="http://dc-js.github.io/dc.js/">dc.js</a> and <a href="http://coffeescript.com/">Coffeescript</a>. It works best in <a href="http://www.google.com/chrome"/>Chrome</a>.  All source code is available on <a href="https://github.com/Spantree/divvy-dashboard">Github</a>.
+          </p>
+          <p class="col-xs-12" id="instructions">
+            The graphs you see below are entirely interactive. Data is loaded directly into the browser as a CSV and all the processing and filtering takes place completely in the browser as well. Some filters are still a little slow, but feel free to drill into the various dimensions and learn how Chicago fell in love with these little blue bicycles.
+          </p>
+        </div>
+      <div class="row" id="initial-loading-message">
         <span class="col-xs-12">
+        <span class="col-xs-12">
+          <div class="spinner" role="spinner"><div class="spinner-icon"></div></div>
+          <img src="images/divvy-bike.jpg">
           <h4>Loading data, slicing and dicing...</h4>
         </span>
       </div>
       <span id="chart-container">
-        <div class="row" style="padding-top: 10px;">
+        <div class="row">
           <span class="col-xs-12">
               <table>
                   <tr>
@@ -83,7 +166,7 @@
           </span>
           <p class="muted pull-right" style="margin-right: 15px;">select a time range to zoom in</p>
         </div>
-        <div class="row" style="padding-top: 20px;">
+        <div class="row">
             <span class="col-xs-4">
                 <h4>Gender of Rider</h4>
                 <div id="gender-chart"></div>
@@ -113,6 +196,12 @@
             </span>
         </div>
       </span>
+  </div>
+  <div id="footer">
+    <div class="container">
+      <p class="credit">Brought to you by <a href="http://spantree.net">Spantree, LLC</a>.</p>
+      <a href="http://spantree.net"><img src="images/spantree-logo-inverted.png"/></a>
+    </div>
   </div>
   <script type="text/javascript" src="vendor/d3/d3.js"></script>
   <script type="text/javascript" src="vendor/crossfilter/crossfilter.js"></script>

@@ -15,23 +15,34 @@ progressTimings =
   'Loading dimensions': 80
   'Rendering': 100
 
-oldEventTriggerFunction = dc.events.trigger
-
 startLoading = ->
+  NProgress.start()
   $('.dc-chart:not(#minutes-on-bike-chart)').css
     opacity: 0.5
-  NProgress.start()
+  $('#initial-loading-message h4').remove()
+  $tc = $('#trips-over-time-chart svg')
+  marginTop = $tc.position().top + $tc.height()/2 - 25
+  marginLeft = $tc.position().left + $tc.width()/2 - 25
+
+  $('#initial-loading-message').css
+      'display': 'block'
+      'position': 'absolute'
+      'margin-left': "#{marginLeft}px"
+      'margin-top': "#{marginTop}px"
 
 finishedLoading = ->
   NProgress.done()
+  $('#initial-loading-message').css
+    display: 'none'
+  $('#initial-loading-message img').css
+    display: 'none'
   $('.dc-chart').css
     opacity: 1.0
-
-dc.events.trigger = (closure, delay) ->
-  # _.debounce startLoading, 50
-  oldEventTriggerFunction(closure, delay)
+  $('#footer').css
+    display: 'block'
 
 dc.constants.EVENT_DELAY = 200
+
 
 chartDefaults =
   
@@ -46,7 +57,7 @@ chartDefaults =
     elasticY: true
     renderHorizontalGridLines: true
 
-    legend: dc.legend().x(1000).y(10).itemHeight(13).gap(5)
+    legend: dc.legend().x(1050).y(10).itemHeight(13).gap(5)
     margins:
       top: 30
       right: 10
@@ -189,6 +200,7 @@ loadData = (csvFile) ->
       d.dayMillis = d.day.getTime()
       d.age = if d.birthday then d.startdate.getFullYear() - d.birthday else -1
       d.membertype = if d.usertype == 'Subscriber' then 'Member' else 'Guest'
+
       d.gender = d.gender || 'Undisclosed'
       return
 
@@ -218,11 +230,9 @@ loadData = (csvFile) ->
           clipPadding: 0
         postSetup: ->
           @chart.on 'preRedraw', ->
-            console.log "Starting redraw"
             startLoading()
           @chart.on 'postRedraw', ->
-            console.log "Done with redraw"
-            finishedLoading()
+            setTimeout finishedLoading, 200
 
           oldFocus = @chart.focus
 
@@ -299,9 +309,9 @@ loadData = (csvFile) ->
         dimensionFunction: (d) -> d.membertype
         el: '#user-type-chart'
         chartType: 'pieChart'
-        chartOptions:
-          label: (d) ->
-            "#{d.key} (#{Math.floor(d.value / all.value() * 100)}%)"
+#        chartOptions:
+#          label: (d) ->
+#            "#{d.key} (#{Math.floor(d.value / all.value() * 100)}%)"
 
       new DimensionChart
         name: 'Age of Rider'
@@ -318,9 +328,9 @@ loadData = (csvFile) ->
         reducer: 'subscriberRides'
         el: '#gender-chart'
         chartType: 'pieChart'
-        chartOptions:
-          label: (d) ->
-            "#{d.key} (#{Math.floor(d.value / all.value() * 100)}%)"
+#        chartOptions:
+#          label: (d) ->
+#            "#{d.key} (#{Math.floor(d.value / all.value() * 100)}%)"
     ]
 
     d = 1
@@ -335,7 +345,7 @@ loadData = (csvFile) ->
         .group(all)
         .html({
             some:"<strong>%filter-count</strong> selected out of <strong>%total-count</strong> rides",
-            all:"All rides selected. Please click on the graph to apply filters."
+            all:"All <strong>%total-count</strong> rides selected. Please click on the graph to apply filters."
         });
 
     dc.renderAll()
@@ -348,10 +358,14 @@ loadData = (csvFile) ->
       display: 'none'
 
     $('#chart-container').css
-      display: 'inline-block'
+      display: 'block'
+
+    $('#instructions').css
+      display: 'block'
 
     $('#reset-all').click ->
       dc.filterAll()
       dc.redrawAll()
 
-loadData files['2013']
+csvFile = "#{files['2013']}#{if window.location.hostname != 'localhost' then '.gz' else ''}"
+loadData csvFile
