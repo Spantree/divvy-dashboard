@@ -4,16 +4,11 @@ files =
 
 dateFormat = d3.time.format "%Y-%m-%d %H:%M"
 
+# Display timestamps in our console.logs
 console.logCopy = console.log.bind(console)
 
 console.log = (msg, data) ->
   this.logCopy("[#{new Date().toUTCString()}] #{msg}", data);
-
-progressTimings =
-  'Fetching CSV': 10
-  'Pre-parsing data': 20
-  'Loading dimensions': 80
-  'Rendering': 100
 
 startLoading = ->
   NProgress.start()
@@ -42,7 +37,6 @@ finishedLoading = ->
     display: 'block'
 
 dc.constants.EVENT_DELAY = 200
-
 
 chartDefaults =
   
